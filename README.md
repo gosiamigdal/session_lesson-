@@ -29,7 +29,7 @@ Add on the line immediately after the `<title>` tag on line 3,
 
     <link href="/static/css/bootstrap.css" rel="stylesheet">
 
-Bam. It's way better. Welcome to [http://getbootstrap.com/getting-started/#template](Bootstrap).
+Bam. It's way better. Welcome to [Bootstrap](http://getbootstrap.com/getting-started/#template).
 
 In short, bootstrap is a series of CSS design decisions made for you. It's pretty great, because it takes away a lot of the 'hideous' factor. The only thing you need to do is organize your divs according to how they want you to, and give them the right class names. This is fine, because all things considered, bootstrap has some pretty good names and pretty good nesting conventions. Play by their rules, and everything looks amazing.
 
@@ -57,7 +57,7 @@ We're gonna give our app a little updo. First, this background's too bright. It 
         background-color: #eee;
     }
 
-A lovely gray, like the cheerless winter sky. Excellent. Now, the form. It's too wide and it's hurting my eyes. Humans don't like lateral eye movement, it gets tiring. We'll stick to narrow columns. Add the new lines, then reload:
+A lovely gray, like the cheerless winter sky. Excellent. Now, the form. It's too wide and it's also hurting my eyes. Humans don't like lateral eye movement, it gets tiring. We'll stick to narrow columns. Add the new lines, then reload:
 
     form.signin {
         width: 330px;
@@ -94,6 +94,27 @@ With a website, we think of 'flow' as moving from url to url. Instead, it makes 
 One last thing, notice the form on the login page has no _action_ url. This is intentional. The behavior of a form that has no action is to post to the same URL it came from. We're abusing this in app.py, both the `index` handler and the `process_login` handler respond to the same URL, but one only responds to __GET__ and the other only responds to __POST__. This gives us a nice suggestion in app.py that the two handlers are related, even if the functions aren't named that well.
 
 Note: in Flask documentation, the functions we call 'handlers' are actually called 'views'. In other systems, they're also called 'controllers'. The name 'handler' refers to the _concept_, it's a function that responds to a specific event. The other two names are what different implementations call the concept.
+
+## Template inheritance
+If you open 'register.html', you'll see that it's almost exactly the same code as 'login.html', minus the css templates. Add those now. Or just read ahead. We have two templates which are nearly identical, and for consistency, we'd like them to be in sync. Rather than try to manually sync them up, we'll use template inheritance to extract the common parts of the templates to a single place. When we change the master template, it wil change on all templates that extend from it.
+
+Open up 'master.html', and you'll see the common parts of the two html pages. You'll also see a myster directive, `{% block body %}{% endblock %}` where the form would go.
+
+Go back to html and delete everything from it but the form. Now, we'll add two directives. The first, 'extends', at the very top:
+
+    {% extends 'master.html' %}
+
+The second, we'll add around the form. Before the form, add the line
+
+    {% block body %}
+
+And at the end, we'll add:
+
+    {% endblock %}
+
+We're just taking the mad lib concept one step further, we're defining a master template with empty spaces called 'blocks', and each template can fill in those blocks with whatever they like. That way, we can guarantee we're using the same formatting and css for everything.
+
+You can find more info at the [flask docs](http://jinja.pocoo.org/docs/templates/#template-inheritance).
 
 ## Logins
 This is the meatiest part of the project, and it uses a couple of complex concepts. Pay attention and re-read things if necessary. If you learn nothing else from Hackbright, at least learn reading comprehension!
@@ -135,7 +156,7 @@ With our authenticate function, we can now do logins. Let's add some logic to th
 
 Uhh... hrm. We need a way to indicate to a user successfully logged in. It would be nice if we could just flash them a message that only shows up once.
 
-Introducing: [the message flash](FILL THIS).
+Introducing: [the message flash](http://flask.pocoo.org/docs/patterns/flashing/).
 
 The message flash is place we can store temporary messages. We can just jam messages in there as needed, and then when we call the function `get_flashed_messages` from our template, it displays them _once_ and they are deleted. It's good for temporary notes like 'Login succeeded', or 'Password incorrect', or 'Alert: Ferret Warning'.
 
@@ -167,7 +188,7 @@ Now, reload the index page, try to login. You should see a ferret warning (or mu
 Oh. The unhashed password, by the way, is _unicorn_.
 
 ### The Session
-The home stretch. We've almost got a login system working, but the problem is the damn thing doesn't _remember_ that we logged in. We'll add the final piece to make this all work, the _session_.
+The home stretch. We've almost got a login system working, but the problem is the damn thing doesn't _remember_ that we logged in. We'll add the final piece to make this all work, the [_session_](http://flask.pocoo.org/docs/quickstart/#sessions).
 
 Note: there are several things called a 'session' in web programming. Sometimes it refers to this memory mechanism we're about to describe, sometimes it describes a connection to a database. For the latter, it's usually called a database session. Be aware of context when you're talking about the session.
 
@@ -179,7 +200,35 @@ For an image with less grit, imagine instead that the server is basically someon
 
 As each browser asks the server for something, it offers its selection of post-its for the server to peruse. The server uses these post-its as notes for itself to decide what to do.
 
-In Flask, the session takes the form of a dictionary named `session`. Here's how to use it.
+In Flask, the session takes the form of a dictionary named `session`. Here's how to use it. Let's update our `process_login` handler one last time. I promise. Pinky promise.
+
+    def process_login():
+        username = request.form.get("username")
+        password = request.form.get("password")
+
+        username = model.authenticate(username, password)
+        if username != None
+            flash('message') = "User authenticated!"
+            session['username'] = username
+        else:
+            flash('message') = "Password incorrect, there may be a ferret stampede in progress!"
+
+        return redirect(url_for("index"))
+
+All we've did was we've specified the username in the browser session on a successful authentication. And our last tweak, we modify our `index` handler:
+
+    def index():
+        if session.get("username"):
+            return "User %s is logged in!"%session['username']
+        else:
+            return render_template("index.html")
+
+Log in successfully, and you should be treated to a sparse message regarding your success. And now it will never go away.
+
+Essentially, the session is our server's memory (memento-style). Instead of actually remembering things, we just leave notes in the session for ourselves. Every time we encounter a browser, we check it for an notes to see if we need to do anything special with it and act accordingly.
+
+Hrmmm. It might be nice to clear this session. Make a new handler that responds to any url of your choice, and have it call the method `session.clear()` before redirecting back to the index.
+
 ## Your mission
 
 Create a sqlite3 database, thewall.db, with the following schema
@@ -198,7 +247,11 @@ Create a sqlite3 database, thewall.db, with the following schema
 
 You'll add some functionality to model.py to connect to this database. If you need a refresher, visit the [sql lesson](http://github.com/chriszf/sql_lesson) or your own implementation, and go ahead and copy the connection code over from _that_ mode.py.
 
-You're going to build a 'wall' (think of a site you know, it rhymes with... Oh, I don't know. Space cook.), which will require the following handlers:
+You're going to build a 'wall' (think of a site you know, it rhymes with... Oh, I don't know. Space cook.).
+
+__Do this first:__ The first thing to do is to change your authenticate function to search the database for a user and password, rather than pulling from the admin info. It should also put the `user_id` into the session instead of the `username`.
+
+which will require the following handlers:
 
 1.  A __GET__ handler named `view_user`, with a url pattern of either:
 
@@ -209,6 +262,8 @@ You're going to build a 'wall' (think of a site you know, it rhymes with... Oh, 
     The wall template should use a `{% for %}` directive to loop through all the `wall_post` rows, and display them each in their own div, along with the author's name and the `created_at` time (formatted however you like).
 
     The template should also check if the browser is logged in using an `{% if %}` directive. If so, display a form whose method is __POST__ and action is the url for handler number two. It should have only two input elements, a textarea and a submit button.,
+
+    Refer to the [jinja documentation](http://jinja.pocoo.org/docs/templates/) for the usage of for loops and such.
 
 2.  A __POST__ handler named `post_to_wall`, with the _exact_ same pattern as the __GET__ handler, which will do the following things:
     
@@ -235,6 +290,8 @@ You're going to build a 'wall' (think of a site you know, it rhymes with... Oh, 
     If they _do_ exist, flash an error message and redirect them to the register page.
 
     If they don't exist, create a new record for them in the database, flash a message saying their user was created, then redirect them to the login page.
+
+
 
 ## Extra credit: WTF
 
