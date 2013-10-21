@@ -1,16 +1,14 @@
 <html>
     <head>
         <title>The Book of Faces</title>
-        <link href="/static/css/bootstrap.css" rel="stylesheet">
-        <link href="/static/css/main.css" rel="stylesheet">
     </head>
     <body>
         <div class="container">
             <form class="signin">
-                <h2 class="signin-heading">Please sign in</h2>
+                <h2 class="signin-heading">Register a new account</h2>
                 <input type="text" class="form-control" placeholder="Username" name="username">
                 <input type="password" class="form-control" placeholder="Password" name="password">
-                Not a user? <a href="{{ url_for("register") }}">Register</a> a new account
+                <input type="password" class="form-control" placeholder="Password" name="password_verify">
                 <input type="submit" class="btn btn-lg btn-primary btn-block" value="Submit">
             </form>
         </div>
