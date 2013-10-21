@@ -6,8 +6,8 @@ You've built a webapp, wonderful. It works, and not too shabbily. But there are 
 * Light styling
 * Template inheritance
 * URL Management
-* Sessions
 * Message flashing
+* Sessions
 
 ## Taking Stock
 First thing's first, clone this repository, create a new virtual environment, and reconstruct the required packages.
@@ -89,15 +89,100 @@ Browse back to the login page and reload. Now, click register again. And like _m
 
     {{ url_for("register") }}
 
-With a website, we think of 'flow' as moving from url to url. Instead, it makes more sense to think of the flow as moving from function to function in our, independent of the urls. To facilitate this, flask includes a function that given a handler name, will return the url attached to it. Thus, with a single function we completely remove one huge source of potential problems. We should never have broken links, because all links are guaranteed to be produced from a handler that exists.
+With a website, we think of 'flow' as moving from url to url. Instead, it makes more sense to think of the flow as moving from function to function in our, independent of the urls. To facilitate this, flask includes a function that given a handler name, will return the url attached to it. Thus, with a single function we completely remove one huge source of potential problems. We should never have broken links, because all links are guaranteed to be produced from a handler that exists. The `url_for` function is always available in templates without the need to import it.
+
+One last thing, notice the form on the login page has no _action_ url. This is intentional. The behavior of a form that has no action is to post to the same URL it came from. We're abusing this in app.py, both the `index` handler and the `process_login` handler respond to the same URL, but one only responds to __GET__ and the other only responds to __POST__. This gives us a nice suggestion in app.py that the two handlers are related, even if the functions aren't named that well.
+
+Note: in Flask documentation, the functions we call 'handlers' are actually called 'views'. In other systems, they're also called 'controllers'. The name 'handler' refers to the _concept_, it's a function that responds to a specific event. The other two names are what different implementations call the concept.
 
 ## Logins
+This is the meatiest part of the project, and it uses a couple of complex concepts. Pay attention and re-read things if necessary. If you learn nothing else from Hackbright, at least learn reading comprehension!
 
-Don't store _everything_ in a session. Hold one, maybe two things _at the most_. Just enough to grab more information as you need it.
+### Hashing
+Logins should be easy, all we have to do is read in the request.form, check the username and password, and if they line up with a user, then great, we're authenticated. We've even provided a sample user and password in model.py, as well as a function signature to use. Let's fill it in. In model.py, let's change authenticate:
 
+    def authenticate(username, password):
+        if username == ADMIN_USER and password == ADMIN_PASSWORD:
+            return True
+
+        return False
+
+This is okay, but let's pause for a second. Our `ADMIN_PASSWORD` is right there for everyone to see in our repository. If we left it in plain text, everyone on github could log into our system. Obviously, this is a bit of an oversight which we'll address right now. Look at the `ADMIN_PASSWORD`. It's not a string, but a number. We've taken the precaution of running the password through a hashing function first. Remember from the discussion on hashing that a hash function takes a string and returns a number specific to that string, but not the converse. It cannot produce the original string from any arbitrary number.
+
+The numbers that come out of the hashing function are unique to each string, so we can use this for our nefarious intents. Instead of comparing passwords directly, we compare just the _hashes_ of the passwords. Because the numbers are unique, this is effectively the same. But since we can't get the original string from the number, we can safely store the number without worrying about someone stealing our database or code. Change authenticate to look like this instead:
+
+    def authenticate(username, password):
+        if username == ADMIN_USER and hash(password) == ADMIN_PASSWORD:
+            return ADMIN_USER
+        else:
+            return None
+
+Now, we're safe.
+
+Note: We've made authenticate into a dual use function. It has the original capability, tell us if the username and password are valid or not, but it also returns the user attached to those credentials if we need it. In this form, we can check success of an authenticate by simply checking if the value is None or not None (False or True), and if we need the username as well, we already have it.
+
+### Message Flashing
+With our authenticate function, we can now do logins. Let's add some logic to the `process_login` handler.
+
+    def process_login():
+        username = request.form.get("username")
+        password = request.form.get("password")
+
+        if model.authenticate(username, password):
+            ...
+        else:
+            ... no.. seriously... what do we do here.
+
+Uhh... hrm. We need a way to indicate to a user successfully logged in. It would be nice if we could just flash them a message that only shows up once.
+
+Introducing: [the message flash](FILL THIS).
+
+The message flash is place we can store temporary messages. We can just jam messages in there as needed, and then when we call the function `get_flashed_messages` from our template, it displays them _once_ and they are deleted. It's good for temporary notes like 'Login succeeded', or 'Password incorrect', or 'Alert: Ferret Warning'.
+
+Here's how we use it. Let's finish our method:
+
+    def process_login():
+        username = request.form.get("username")
+        password = request.form.get("password")
+
+        if model.authenticate(username, password):
+            flash('message') = "User authenticated!"
+        else:
+            flash('message') = "Password incorrect, there may be a ferret stampede in progress!"
+
+        return redirect(url_for("index"))
+
+The flash is a function that takes in a string. Each string is queued up the flash, waiting to be displayed only once. Our success or error message is ready to be displayed.
+
+Now, we need to actually show the message somewhere in a template. Open up index.html and let's add the following lines right after the `<h2>` tag:
+
+        <ul>
+        {% for message in get_flashed_messages() %}
+            <li>{{ message }}</li>
+        {% endfor %}
+        </ul>
+
+Now, reload the index page, try to login. You should see a ferret warning (or multiple, if you've tried logging in several times). When you reload, the warning is gone. Now try a successful login.
+
+Oh. The unhashed password, by the way, is _unicorn_.
+
+### The Session
+The home stretch. We've almost got a login system working, but the problem is the damn thing doesn't _remember_ that we logged in. We'll add the final piece to make this all work, the _session_.
+
+Note: there are several things called a 'session' in web programming. Sometimes it refers to this memory mechanism we're about to describe, sometimes it describes a connection to a database. For the latter, it's usually called a database session. Be aware of context when you're talking about the session.
+
+To wire up logins, we have to decompose the concept of 'login' into something a little more manageable. Essentially, to be logged in, the app we're writing needs to remember which browser it's talking to at any given time. However, this is incompatible with the 'stateless' model of web servers (they don't remember anything between handler calls). So far, we've seen no mechanism that would even allow us to remember, and there really isn't. However, we can approximate memory with the session. It works like this.
+
+If you imagine the browser as the protagonist of the movie _Memento_, adding information to the session is like tattooing a message for yourself for later. `</spoilers>`.
+
+For an image with less grit, imagine instead that the server is basically someone with the memory of a goldfish, and has the ability to slap post-it notes on different browsers as they come in. 
+
+As each browser asks the server for something, it offers its selection of post-its for the server to peruse. The server uses these post-its as notes for itself to decide what to do.
+
+In Flask, the session takes the form of a dictionary named `session`. Here's how to use it.
 ## Your mission
 
-There's a database provided for you, thewall.db, with the following schema
+Create a sqlite3 database, thewall.db, with the following schema
 
     users:
     id - int, primary key
@@ -110,6 +195,8 @@ There's a database provided for you, thewall.db, with the following schema
     author_id - int (refers to users.id)
     created_at - datetime
     content - text
+
+You'll add some functionality to model.py to connect to this database. If you need a refresher, visit the [sql lesson](http://github.com/chriszf/sql_lesson) or your own implementation, and go ahead and copy the connection code over from _that_ mode.py.
 
 You're going to build a 'wall' (think of a site you know, it rhymes with... Oh, I don't know. Space cook.), which will require the following handlers:
 
@@ -151,4 +238,4 @@ You're going to build a 'wall' (think of a site you know, it rhymes with... Oh, 
 
 ## Extra credit: WTF
 
-No seriously, it's called [WTForms](http://flask.pocoo.org/docs/patterns/wtforms/). Validating your registration, login, and wall post forms will be a huge pain in the butt. Enter WTForms, which (for the cost of a little extra overhead in setup) makes that relatively easy. Try incorporating WTForms into your project.
+No seriously, it's called [WTForms](http://flask.pocoo.org/docs/patterns/wtforms/). Validating your registration, login, and wall post forms will be a huge pain in the butt. Enter WTForms, which (for the cost of a little extra overhead in setup) makes that relatively easy. Try incorporating WTForms into your project. It will be a little bit painful, but it is absolutely worth the cost once you manage it.
