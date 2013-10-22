@@ -1,0 +1,20 @@
+{% extends 'master.html' %}
+{% block body %}
+    {{username}}'s wall.
+    {% if logged_in %}
+        <form method="POST" action="/post">
+            <textarea rows="4" cols="20" name="content">Put text here</textarea><br><br>
+            <input type="hidden" name="username" value={{username}}>
+            <input type="submit" value="Submit">
+        </form>
+    {% endif %}
+    {% for post in posts%}
+        <div>
+            <p>
+            {% for line in post %}
+                {{line}}<br>
+            {% endfor %}
+            <p>
+        </div>
+    {% endfor %}
+{% endblock %}

@@ -1,16 +1,10 @@
-<html>
-    <head>
-        <title>The Book of Faces</title>
-    </head>
-    <body>
-        <div class="container">
-            <form class="signin">
-                <h2 class="signin-heading">Register a new account</h2>
-                <input type="text" class="form-control" placeholder="Username" name="username">
-                <input type="password" class="form-control" placeholder="Password" name="password">
-                <input type="password" class="form-control" placeholder="Password" name="password_verify">
-                <input type="submit" class="btn btn-lg btn-primary btn-block" value="Submit">
-            </form>
-        </div>
-    </body>
-</html>
+{% extends 'master.html' %}
+{% block body %}
+<form class="signin">
+    <h2 class="signin-heading">Register a new account</h2>
+    <input type="text" class="form-control" placeholder="Username" name="username">
+    <input type="password" class="form-control" placeholder="Password" name="password">
+    <input type="password" class="form-control" placeholder="Password" name="password_verify">
+    <input type="submit" class="btn btn-lg btn-primary btn-block" value="Submit">
+</form>
+{% endblock %}
